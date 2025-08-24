@@ -1,80 +1,54 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+Ôªøusing System;
+using System.Collections.Generic;
 
 namespace SistemaColegios.Models.Entities;
 
 /// <summary>
-/// Entidad temporal para Usuario - ser· reemplazada por scaffold de BD
+/// Gesti√≥n unificada de usuarios con SSO. Un usuario puede tener acceso a m√∫ltiples colegios.
 /// </summary>
-[Table("usuarios")]
-public class Usuario
+public partial class Usuario
 {
-    [Key]
     public Guid Id { get; set; }
 
-    [Required]
-    [MaxLength(100)]
-    public string Username { get; set; } = string.Empty;
+    public string Username { get; set; } = null!;
 
-    [Required]
-    [MaxLength(255)]
-    public string Email { get; set; } = string.Empty;
+    public string Email { get; set; } = null!;
 
-    [Required]
-    public string PasswordHash { get; set; } = string.Empty;
+    public string PasswordHash { get; set; } = null!;
 
-    public string? Salt { get; set; }
+    public string Salt { get; set; } = null!;
 
-    public bool Activo { get; set; } = true;
+    public bool? Activo { get; set; }
 
-    public bool RequiereCambioPassword { get; set; } = false;
+    public bool? RequiereCambioPassword { get; set; }
 
     public DateTime? UltimoAcceso { get; set; }
 
-    public int IntentosFallidos { get; set; } = 0;
+    public int? IntentosFallidos { get; set; }
 
     public DateTime? BloqueadoHasta { get; set; }
 
-    public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+    public DateTime? FechaCreacion { get; set; }
 
-    public DateTime FechaActualizacion { get; set; } = DateTime.UtcNow;
+    public DateTime? FechaActualizacion { get; set; }
+
+    public virtual ICollection<Acudiente> Acudientes { get; set; } = new List<Acudiente>();
+
+    public virtual ICollection<Asistencium> Asistencia { get; set; } = new List<Asistencium>();
+
+    public virtual ICollection<LogsAuditorium> LogsAuditoria { get; set; } = new List<LogsAuditorium>();
+
+    public virtual ICollection<Mensaje> MensajeUsuarioEmisors { get; set; } = new List<Mensaje>();
+
+    public virtual ICollection<Mensaje> MensajeUsuarioReceptors { get; set; } = new List<Mensaje>();
+
+    public virtual ICollection<NotificacionDestinatario> NotificacionDestinatarios { get; set; } = new List<NotificacionDestinatario>();
+
+    public virtual ICollection<Notificacione> Notificaciones { get; set; } = new List<Notificacione>();
+
+    public virtual ICollection<Pago> Pagos { get; set; } = new List<Pago>();
+
+    public virtual ICollection<Profesore> Profesores { get; set; } = new List<Profesore>();
+
+    public virtual ICollection<UsuarioRole> UsuarioRoles { get; set; } = new List<UsuarioRole>();
 }
-
-// ===============================================
-// ENTIDADES STUB TEMPORALES
-// ===============================================
-// Estas son entidades mÌnimas para que compile el DbContext
-// Ser·n reemplazadas por las entidades generadas desde la BD
-
-public class Colegio { public Guid Id { get; set; } }
-public class TipoDocumento { public int Id { get; set; } }
-public class TipoUsuario { public int Id { get; set; } }
-public class Rol { public Guid Id { get; set; } }
-public class UsuarioRol { public Guid Id { get; set; } }
-public class AnoAcademico { public Guid Id { get; set; } }
-public class NivelEducativo { public Guid Id { get; set; } }
-public class Grado { public Guid Id { get; set; } }
-public class Grupo { public Guid Id { get; set; } }
-public class Materia { public Guid Id { get; set; } }
-public class Pensum { public Guid Id { get; set; } }
-public class Persona { public Guid Id { get; set; } }
-public class Profesor { public Guid Id { get; set; } }
-public class ProfesorColegio { public Guid Id { get; set; } }
-public class Estudiante { public Guid Id { get; set; } }
-public class Matricula { public Guid Id { get; set; } }
-public class Acudiente { public Guid Id { get; set; } }
-public class EstudianteAcudiente { public Guid Id { get; set; } }
-public class PeriodoAcademico { public Guid Id { get; set; } }
-public class Asignacion { public Guid Id { get; set; } }
-public class TipoEvaluacion { public Guid Id { get; set; } }
-public class Calificacion { public Guid Id { get; set; } }
-public class Asistencia { public Guid Id { get; set; } }
-public class ConceptoFacturacion { public Guid Id { get; set; } }
-public class Factura { public Guid Id { get; set; } }
-public class FacturaDetalle { public Guid Id { get; set; } }
-public class Pago { public Guid Id { get; set; } }
-public class TipoNotificacion { public int Id { get; set; } }
-public class Notificacion { public Guid Id { get; set; } }
-public class NotificacionDestinatario { public Guid Id { get; set; } }
-public class Mensaje { public Guid Id { get; set; } }
-public class LogAuditoria { public Guid Id { get; set; } }

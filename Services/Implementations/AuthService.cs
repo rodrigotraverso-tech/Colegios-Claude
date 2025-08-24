@@ -43,7 +43,7 @@ public class AuthService : IAuthService
             }
 
             // Verificar si el usuario está activo
-            if (!usuario.Activo)
+            if (!usuario.Activo.HasValue || !usuario.Activo.Value)
             {
                 _logger.LogWarning("Intento de login con usuario inactivo: {Username}", username);
                 return false;
