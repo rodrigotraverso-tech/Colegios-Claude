@@ -1,19 +1,298 @@
-﻿@inherits LayoutComponentBase
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using MudBlazor
+@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
 
-<PageTitle>SistemaColegios</PageTitle>
+<MudThemeProvider @ref="@_mudThemeProvider" @bind-IsDarkMode="@_isDarkMode" Theme="_currentTheme" />
+<MudDialogProvider />
+<MudSnackbarProvider />
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<MudLayout>
+    <AuthorizeView>
+        <Authorized>
+            @{
+                var userRole = GetUserRole(context.User);
+                var isMobile = GetDeviceType() == "Mobile";
+            }
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
-        </div>
+            @if (isMobile && (userRole == "Padre" || userRole == "Estudiante"))
+            {
+                <!-- Layout Móvil para Padres y Estudiantes -->
+                <MudAppBar Elevation="1" Class="mud-theme-primary">
+                    <MudIconButton Icon="Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+                    <MudText Typo="Typo.h6" Class="ml-3">@_colegioNombre</MudText>
+                    <MudSpacer />
+                    <MudIconButton Icon="Icons.Material.Filled.Brightness4" Color="Color.Inherit" OnClick="@((e) => DarkModeToggle())" />
+                    <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit">
+                        <MudMenuItem OnClick="VerPerfil">Mi Perfil</MudMenuItem>
+                        <MudMenuItem OnClick="CambiarPassword">Cambiar Contraseña</MudMenuItem>
+                        <MudDivider />
+                        <MudMenuItem OnClick="Logout">Cerrar Sesión</MudMenuItem>
+                    </MudMenu>
+                </MudAppBar>
 
-        <article class="content px-4">
+                <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1" Variant="@DrawerVariant.Temporary">
+                    <MudDrawerHeader Class="mud-theme-primary white-text pa-6">
+                        <div class="d-flex align-center">
+                            @if (!string.IsNullOrEmpty(_colegioLogo))
+                            {
+                                <MudAvatar Image="@_colegioLogo" Size="Size.Medium" Class="mr-3" />
+                            }
+                            <div>
+                                <MudText Typo="Typo.h6">@context.User.Identity?.Name</MudText>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">@userRole</MudText>
+                            </div>
+                        </div>
+                    </MudDrawerHeader>
+                    <MudNavMenu>
+                        @if (userRole == "Padre")
+                        {
+                            <MudNavLink Href="/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+                            <MudNavLink Href="/mis-hijos" Icon="@Icons.Material.Filled.FamilyRestroom">Mis Hijos</MudNavLink>
+                            <MudNavLink Href="/calificaciones" Icon="@Icons.Material.Filled.Grade">Calificaciones</MudNavLink>
+                            <MudNavLink Href="/asistencia" Icon="@Icons.Material.Filled.EventNote">Asistencia</MudNavLink>
+                            <MudNavLink Href="/pagos" Icon="@Icons.Material.Filled.Payment">Pagos</MudNavLink>
+                            <MudNavLink Href="/notificaciones" Icon="@Icons.Material.Filled.Notifications">Notificaciones</MudNavLink>
+                        }
+                        else if (userRole == "Estudiante")
+                        {
+                            <MudNavLink Href="/dashboard" Icon="@Icons.Material.Filled.Dashboard">Mi Dashboard</MudNavLink>
+                            <MudNavLink Href="/mis-calificaciones" Icon="@Icons.Material.Filled.Grade">Mis Calificaciones</MudNavLink>
+                            <MudNavLink Href="/mi-asistencia" Icon="@Icons.Material.Filled.EventNote">Mi Asistencia</MudNavLink>
+                            <MudNavLink Href="/horario" Icon="@Icons.Material.Filled.Schedule">Mi Horario</MudNavLink>
+                        }
+                    </MudNavMenu>
+                </MudDrawer>
+            }
+            else
+            {
+                <!-- Layout Desktop para Admin/Profesores -->
+                <MudAppBar Elevation="1" Class="mud-theme-primary">
+                    <MudIconButton Icon="Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+                    @if (!string.IsNullOrEmpty(_colegioLogo))
+                    {
+                        <MudAvatar Image="@_colegioLogo" Size="Size.Small" Class="mr-3" />
+                    }
+                    <MudText Typo="Typo.h6">@_colegioNombre</MudText>
+                    <MudSpacer />
+
+                    <!-- Selector de Colegio (solo para Admin Sistema) -->
+                    @if (userRole == "AdminSistema")
+                    {
+                        <MudSelect T="Guid" @bind-Value="_colegioSeleccionado" Label="Colegio" Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" Class="mr-4" Style="min-width: 200px;">
+                            @foreach (var colegio in _colegiosDisponibles)
+                            {
+                                <MudSelectItem Value="@colegio.Id">@colegio.Nombre</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+
+                    <MudIconButton Icon="Icons.Material.Filled.Brightness4" Color="Color.Inherit" OnClick="@((e) => DarkModeToggle())" />
+                    <MudIconButton Icon="Icons.Material.Filled.Notifications" Color="Color.Inherit" BadgeData="@_notificacionesCount" BadgeColor="Color.Error" />
+
+                    <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit">
+                        <div class="pa-4" style="min-width: 200px;">
+                            <MudText Typo="Typo.subtitle1">@context.User.Identity?.Name</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">@userRole</MudText>
+                        </div>
+                        <MudDivider />
+                        <MudMenuItem OnClick="VerPerfil">Mi Perfil</MudMenuItem>
+                        <MudMenuItem OnClick="CambiarPassword">Cambiar Contraseña</MudMenuItem>
+                        @if (userRole == "AdminColegio" || userRole == "AdminSistema")
+                        {
+                            <MudMenuItem OnClick="Configuracion">Configuración</MudMenuItem>
+                        }
+                        <MudDivider />
+                        <MudMenuItem OnClick="Logout">Cerrar Sesión</MudMenuItem>
+                    </MudMenu>
+                </MudAppBar>
+
+                <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1" Variant="@DrawerVariant.Mini" OpenMiniOnHover="true">
+                    <MudDrawerHeader Class="mud-theme-primary white-text">
+                        <MudText Typo="Typo.h6">Sistema Colegios</MudText>
+                    </MudDrawerHeader>
+                    <MudNavMenu>
+                        @if (userRole == "AdminSistema")
+                        {
+                            <MudNavGroup Text="Sistema" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="true">
+                                <MudNavLink Href="/admin/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+                                <MudNavLink Href="/admin/colegios" Icon="@Icons.Material.Filled.School">Colegios</MudNavLink>
+                                <MudNavLink Href="/admin/usuarios" Icon="@Icons.Material.Filled.People">Usuarios</MudNavLink>
+                                <MudNavLink Href="/admin/configuracion" Icon="@Icons.Material.Filled.Settings">Configuración</MudNavLink>
+                            </MudNavGroup>
+                        }
+
+                        @if (userRole == "AdminColegio")
+                        {
+                            <MudNavGroup Text="Administración" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="true">
+                                <MudNavLink Href="/colegio/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+                                <MudNavLink Href="/colegio/estudiantes" Icon="@Icons.Material.Filled.Group">Estudiantes</MudNavLink>
+                                <MudNavLink Href="/colegio/profesores" Icon="@Icons.Material.Filled.PersonAdd">Profesores</MudNavLink>
+                                <MudNavLink Href="/colegio/financiero" Icon="@Icons.Material.Filled.AttachMoney">Financiero</MudNavLink>
+                            </MudNavGroup>
+                            <MudNavGroup Text="Académico" Icon="@Icons.Material.Filled.MenuBook">
+                                <MudNavLink Href="/colegio/calificaciones" Icon="@Icons.Material.Filled.Grade">Calificaciones</MudNavLink>
+                                <MudNavLink Href="/colegio/asistencia" Icon="@Icons.Material.Filled.EventNote">Asistencia</MudNavLink>
+                                <MudNavLink Href="/colegio/reportes" Icon="@Icons.Material.Filled.Assessment">Reportes</MudNavLink>
+                            </MudNavGroup>
+                        }
+
+                        @if (userRole == "Profesor")
+                        {
+                            <MudNavLink Href="/profesor/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+                            <MudNavLink Href="/profesor/mis-grupos" Icon="@Icons.Material.Filled.Group">Mis Grupos</MudNavLink>
+                            <MudNavLink Href="/profesor/calificaciones" Icon="@Icons.Material.Filled.Grade">Calificaciones</MudNavLink>
+                            <MudNavLink Href="/profesor/asistencia" Icon="@Icons.Material.Filled.EventNote">Asistencia</MudNavLink>
+                            <MudNavLink Href="/profesor/reportes" Icon="@Icons.Material.Filled.Assessment">Reportes</MudNavLink>
+                        }
+                    </MudNavMenu>
+                </MudDrawer>
+            }
+
+            <MudMainContent Class="pa-4">
+                <div class="ma-4">
+                    @Body
+                </div>
+            </MudMainContent>
+        </Authorized>
+        <NotAuthorized>
             @Body
-        </article>
-    </main>
-</div>
+        </NotAuthorized>
+    </AuthorizeView>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = false;
+    private bool _isDarkMode = false;
+    private MudThemeProvider _mudThemeProvider = new();
+    private MudTheme _currentTheme = new();
+    private string _colegioNombre = "Sistema Colegios";
+    private string _colegioLogo = "";
+    private Guid _colegioSeleccionado;
+    private List<ColegioItem> _colegiosDisponibles = new();
+    private int _notificacionesCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarConfiguracionColegio();
+        await CargarNotificaciones();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var deviceType = await GetDeviceTypeFromJS();
+            StateHasChanged();
+        }
+    }
+
+    private void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void DarkModeToggle()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
+
+    private string GetUserRole(ClaimsPrincipal user)
+    {
+        var roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+
+        if (roles.Contains("AdminSistema")) return "AdminSistema";
+        if (roles.Contains("AdminColegio")) return "AdminColegio";
+        if (roles.Contains("Profesor")) return "Profesor";
+        if (roles.Contains("Padre")) return "Padre";
+        if (roles.Contains("Estudiante")) return "Estudiante";
+
+        return "Invitado";
+    }
+
+    private string GetDeviceType()
+    {
+        return "Desktop"; // Se actualizará con JS
+    }
+
+    private async Task<string> GetDeviceTypeFromJS()
+    {
+        try
+        {
+            return await JSRuntime.InvokeAsync<string>("getDeviceType");
+        }
+        catch
+        {
+            return "Desktop";
+        }
+    }
+
+    private async Task CargarConfiguracionColegio()
+    {
+        // TODO: Cargar configuración real desde BD
+        _colegioNombre = "Colegio Demo";
+        _colegioLogo = "/images/logo-colegio.png";
+        _currentTheme = GenerarTemaPersonalizado();
+    }
+
+    private async Task CargarNotificaciones()
+    {
+        // TODO: Cargar notificaciones reales
+        _notificacionesCount = 3;
+    }
+
+    private MudTheme GenerarTemaPersonalizado()
+    {
+        // TODO: Cargar colores desde configuración del colegio
+        return new MudTheme()
+            {
+                PaletteLight = new PaletteLight()
+                {
+                    Primary = "#1565C0",
+                    Secondary = "#FFA726",
+                    Success = "#43A047",
+                    Info = "#1976D2",
+                    Warning = "#F57C00",
+                    Error = "#D32F2F"
+                },
+                PaletteDark = new PaletteDark()
+                {
+                    Primary = "#1976D2",
+                    Secondary = "#FF9800",
+                    Success = "#4CAF50",
+                    Info = "#2196F3",
+                    Warning = "#FF5722",
+                    Error = "#F44336"
+                }
+            };
+    }
+
+    private async Task VerPerfil()
+    {
+        // TODO: Navegar a perfil de usuario
+    }
+
+    private async Task CambiarPassword()
+    {
+        // TODO: Abrir diálogo de cambio de contraseña
+    }
+
+    private async Task Configuracion()
+    {
+        // TODO: Navegar a configuración
+    }
+
+    private async Task Logout()
+    {
+        // TODO: Implementar logout
+    }
+
+    public class ColegioItem
+    {
+        public Guid Id { get; set; }
+        public string Nombre { get; set; } = "";
+    }
+}
